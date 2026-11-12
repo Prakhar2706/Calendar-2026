@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>रामनारायण पंचांग 2027</title>
+<meta name="theme-color" content="#b3121b">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="पंचांग 2027">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:#222;color:#fff;font-family:system-ui,sans-serif;overflow:hidden}
+  header{position:fixed;top:0;left:0;right:0;z-index:5;background:#b3121b;
+    padding:calc(env(safe-area-inset-top) + 6px) 8px 6px;display:flex;gap:6px;align-items:center}
+  header button{background:#fff2;color:#fff;border:0;border-radius:8px;font-size:20px;width:44px;height:40px}
+  select{flex:1;font-size:17px;height:40px;border-radius:8px;border:0;padding:0 8px;background:#fff;color:#000}
+  #view{position:absolute;top:calc(env(safe-area-inset-top) + 52px);bottom:0;left:0;right:0;
+    overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y}
+  #page{display:block;width:100%;height:auto;transform-origin:0 0}
+  #hint{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 10px);left:10px;right:10px;z-index:6;
+    background:#000d;padding:12px;border-radius:12px;font-size:15px;line-height:1.4;display:none}
+  #hint button{float:right;background:#b3121b;color:#fff;border:0;border-radius:6px;padding:6px 12px;margin-left:8px}
+</style>
+</head>
+<body>
+<header>
+  <button id="prev" aria-label="पिछला">‹</button>
+  <select id="month" aria-label="महीना"></select>
+  <button id="next" aria-label="अगला">›</button>
+  <button id="zin" aria-label="बड़ा करें">+</button>
+  <button id="zout" aria-label="छोटा करें">−</button>
+</header>
+<div id="view"><img id="page" alt="पंचांग पृष्ठ"></div>
+<div id="hint"></div>
+<script>
+const months=["जनवरी","फरवरी","मार्च","अप्रैल","मई","जून","जुलाई","अगस्त","सितंबर","अक्टूबर","नवंबर","दिसंबर"];
+const sel=document.getElementById('month'),img=document.getElementById('page'),view=document.getElementById('view');
+months.forEach((m,i)=>sel.add(new Option(m+" 2027",i)));
+let cur=0,zoom=1;
+function show(i){
+  cur=(i+12)%12; sel.value=cur;
+  img.src="pages/"+String(cur+1).padStart(2,'0')+".jpg";
+  view.scrollTo(0,0); localStorage.setItem('m',cur);
+}
+function setZoom(z){zoom=Math.min(5,Math.max(1,z));img.style.width=(zoom*100)+"%";}
+sel.onchange=()=>show(+sel.value);
+document.getElementById('prev').onclick=()=>show(cur-1);
+document.getElementById('next').onclick=()=>show(cur+1);
+document.getElementById('zin').onclick=()=>setZoom(zoom+0.5);
+document.getElementById('zout').onclick=()=>setZoom(zoom-0.5);
+img.ondblclick=()=>setZoom(zoom>1?1:2.5);
+
+// Pinch zoom
+let d0=0,z0=1;
+const dist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
+view.addEventListener('touchstart',e=>{if(e.touches.length==2){d0=dist(e.touches);z0=zoom;}},{passive:true});
+view.addEventListener('touchmove',e=>{if(e.touches.length==2&&d0){e.preventDefault();setZoom(z0*dist(e.touches)/d0);}},{passive:false});
+view.addEventListener('touchend',()=>{d0=0;});
+
+// Swipe left/right to change month when not zoomed
+let sx=null,sy=0;
+view.addEventListener('touchstart',e=>{if(e.touches.length==1&&zoom==1){sx=e.touches[0].clientX;sy=e.touches[0].clientY;}else sx=null;},{passive:true});
+view.addEventListener('touchend',e=>{if(sx===null)return;const t=e.changedTouches[0],dx=t.clientX-sx;
+  if(Math.abs(dx)>70&&Math.abs(dx)>2*Math.abs(t.clientY-sy))show(cur+(dx<0?1:-1));sx=null;});
+
+const saved=localStorage.getItem('m');
+const now=new Date();
+show(saved!==null?+saved:(now.getFullYear()==2027?now.getMonth():0));
+
+// Offline support
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+
+// Install hint
+const hint=document.getElementById('hint');
+const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+let deferred;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();deferred=e;
+  hint.innerHTML='इस पंचांग को ऐप की तरह फ़ोन में रखें<button id="inst">इंस्टॉल</button>';
+  hint.style.display='block';
+  document.getElementById('inst').onclick=async()=>{hint.style.display='none';deferred.prompt();};
+});
+if(!standalone&&/iphone|ipad|ipod/i.test(navigator.userAgent)){
+  hint.innerHTML='<button onclick="this.parentNode.style.display=\'none\'">ठीक है</button>ऐप बनाने के लिए: Safari में नीचे <b>Share ⬆</b> दबाएँ → <b>Add to Home Screen</b>';
+  hint.style.display='block';
+}
+</script>
+</body>
+</html>
